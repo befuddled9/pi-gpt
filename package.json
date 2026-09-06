@@ -1,0 +1,33 @@
+{
+  "name": "pi-gpt",
+  "version": "0.4.3",
+  "description": "Native Pi extension: drive your ChatGPT/Codex account (chat, deep research, account, models) as Pi tools, scoped to the current project.",
+  "license": "MIT",
+  "author": "davidroman0O",
+  "homepage": "https://github.com/davidroman0O/pi-gpt#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/davidroman0O/pi-gpt.git"
+  },
+  "bugs": {
+    "url": "https://github.com/davidroman0O/pi-gpt/issues"
+  },
+  "keywords": [
+    "pi-package"
+  ],
+  "type": "module",
+  "main": "extensions/chatgpt.ts",
+  "pi": {
+    "extensions": [
+      "extensions/chatgpt.ts",
+      "extensions/observer.ts"
+    ],
+    "skills": [
+      "skills/chatgpt"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  }
+}
