@@ -1,4 +1,4 @@
-// P2: static ChatGPT model registration with text-only native-provider transport.
+// P5: discovered ChatGPT model registration with text-only native-provider transport.
 import {
   type Api,
   type AssistantMessage,
@@ -13,11 +13,12 @@ import {
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { loadToken } from "../src/auth.ts";
 import { getChatGptClients } from "../src/clients.ts";
+import { discoverChatGptModels, discoveredModelRegistration, resolveDiscoveredModel } from "../src/models.ts";
 import { resolveProviderModel } from "../src/reasoning.ts";
 import { serializePiContext } from "../src/context.ts";
 
 const PROVIDER_ID = "chatgpt";
-const PROTOTYPE_MODEL_ID = "prototype-static";
+const modelThinkingEfforts = new Map<string, string[]>();
 type ChatGptStreamOptions = StreamOptions & { reasoning?: ThinkingLevel };
 
 function streamChatGpt(
@@ -50,7 +51,8 @@ function streamChatGpt(
       const prompt = serializePiContext(context);
       let contentIndex: number | undefined;
 
-      const backend = resolveProviderModel(options?.reasoning);
+      const requested = resolveProviderModel(options?.reasoning);
+      const backend = resolveDiscoveredModel(model.id, modelThinkingEfforts.get(model.id) || [], requested.thinkingEffort);
       for await (const event of getChatGptClients().conversation.stream(
         backend.model,
         [{ role: "user", content: prompt }],
@@ -89,7 +91,16 @@ function streamChatGpt(
   return stream;
 }
 
-export default function (pi: ExtensionAPI) {
+export default async function (pi: ExtensionAPI) {
+  let discovered;
+  try {
+    discovered = await discoverChatGptModels(getChatGptClients().backend);
+  } catch (error) {
+    throw new Error(`ChatGPT model discovery failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (discovered.length === 0) throw new Error("ChatGPT model discovery returned no usable models.");
+  for (const model of discovered) modelThinkingEfforts.set(model.slug, model.thinking_efforts);
+
   pi.registerProvider(createProvider({
     id: PROVIDER_ID,
     name: "ChatGPT",
@@ -103,19 +114,7 @@ export default function (pi: ExtensionAPI) {
         },
       },
     },
-    models: [{
-      id: PROTOTYPE_MODEL_ID,
-      name: "ChatGPT Prototype (Static)",
-      api: "chatgpt-p2",
-      provider: PROVIDER_ID,
-      baseUrl: "https://chatgpt.com/backend-api",
-      reasoning: true,
-      thinkingLevelMap: { xhigh: "xhigh", max: "max" },
-      input: ["text"],
-      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-      contextWindow: 128000,
-      maxTokens: 16384,
-    }],
+    models: discovered.map(discoveredModelRegistration),
     api: { stream: streamChatGpt, streamSimple: streamChatGpt },
   }));
 }

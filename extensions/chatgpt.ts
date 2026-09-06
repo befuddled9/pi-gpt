@@ -24,6 +24,7 @@ import {
 import { resolveModel, INTELLIGENCE_LEVELS } from "../src/models.ts";
 import { prepareFiles, readTextFile, renderInlineFiles, uploadFile } from "../src/files.ts";
 import { getChatGptClients } from "../src/clients.ts";
+import { discoverChatGptModels } from "../src/models.ts";
 
 // ── DRH prompt sanitizer ────────────────────────────────────────────────
 // The system prompt is loaded from data/drh-sanitizer-prompt.txt (NOT inlined)
@@ -163,16 +164,7 @@ export default function (pi: ExtensionAPI) {
     parameters: Type.Object({}),
     async execute() {
       const { backend } = clients();
-      const data: any =
-        (await backend.get("/backend-api/models?history_and_training_disabled=false", "/backend-api/models")) || {};
-      const models = (data.models || []).map((m: any) => ({
-        slug: m.slug,
-        title: m.title,
-        reasoning_type: m.reasoning_type,
-        thinking_efforts: (m.thinking_efforts || []).map((e: any) => e.thinking_effort),
-        tags: m.tags,
-        enabled_tools: m.enabled_tools,
-      }));
+      const models = await discoverChatGptModels(backend);
       return {
         content: [
           {
