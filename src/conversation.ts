@@ -610,6 +610,7 @@ export class ConversationClient {
       conversationId?: string;
       parentMessageId?: string;
       attachments?: FileMeta[];
+      pollAsync?: boolean;
       signal?: AbortSignal;
     } = {},
   ): AsyncGenerator<string | ConvIdSentinel> {
@@ -627,6 +628,7 @@ export class ConversationClient {
 
     let currentMsgId: string | null = null;
     let lastText = "";
+    let emittedText = false;
     let conversationId: string | null = opts.conversationId || null;
 
     for await (const data of sseDataLines(r, opts.signal)) {
@@ -646,6 +648,7 @@ export class ConversationClient {
       if (v !== undefined && v !== null) {
         if (typeof v === "string") {
           if (v) {
+            emittedText = true;
             yield v;
             lastText += v;
           }
@@ -664,14 +667,19 @@ export class ConversationClient {
             const nw = parts[0];
             if (isNew) {
               if (nw) {
+                emittedText = true;
                 yield nw;
                 lastText = nw;
               }
             } else if (nw.startsWith(lastText)) {
               const delta = nw.slice(lastText.length);
-              if (delta) yield delta;
+              if (delta) {
+                emittedText = true;
+                yield delta;
+              }
               lastText = nw;
             } else if (nw) {
+              emittedText = true;
               yield nw;
               lastText = nw;
             }
@@ -697,19 +705,28 @@ export class ConversationClient {
       const nw = parts[0];
       if (isNew) {
         if (nw) {
+          emittedText = true;
           yield nw;
           lastText = nw;
         }
       } else if (nw.startsWith(lastText)) {
         const delta = nw.slice(lastText.length);
-        if (delta) yield delta;
+        if (delta) {
+          emittedText = true;
+          yield delta;
+        }
         lastText = nw;
       } else if (nw) {
+        emittedText = true;
         yield nw;
         lastText = nw;
       }
     }
 
+    if (!emittedText && conversationId && opts.pollAsync === true) {
+      const text = await this.pollAsyncResponse(conversationId, opts.signal);
+      if (text) yield text;
+    }
     if (conversationId) yield { _conversation_id: conversationId };
   }
 
@@ -731,7 +748,10 @@ export class ConversationClient {
     let convId: string | null = null;
     const preparedMessages = messages.map((message) => ({ ...message, id: message.id || randomUUID() }));
     const sentMessageIds = new Set(preparedMessages.map((message) => message.id!));
-    for await (const ev of this.stream(model, preparedMessages, opts)) {
+    for await (const ev of this.stream(model, preparedMessages, {
+      ...opts,
+      pollAsync: false,
+    })) {
       if (typeof ev === "object") {
         if (ev._conversation_id) convId = ev._conversation_id;
         continue;

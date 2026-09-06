@@ -74,6 +74,17 @@ async function collect(stream: AsyncGenerator<StreamEvent>): Promise<StreamEvent
 }
 
 describe("research conversation continuation", () => {
+  test("polls a zero-text stream for deferred reasoning output", async () => {
+    globalThis.fetch = async () => response({ conversation_id: "async-conversation" });
+    const conv = client();
+    (conv as any).pollAsyncResponse = async () => "polled answer";
+    const events: any[] = [];
+    for await (const event of conv.stream("gpt-5-5-thinking", [{ role: "user", content: "hello" }], { pollAsync: true })) {
+      events.push(event);
+    }
+    expect(events).toEqual(["polled answer", { _conversation_id: "async-conversation" }]);
+  });
+
   test("defaults Heavy Research waits to two hours", () => {
     expect(DEFAULT_HEAVY_DR_MAX_WAIT_MINUTES).toBe(120);
   });

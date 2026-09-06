@@ -8,21 +8,22 @@ import {
   createProvider,
   type Model,
   type StreamOptions,
+  type ThinkingLevel,
 } from "@earendil-works/pi-ai/compat";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { loadToken } from "../src/auth.ts";
 import { getChatGptClients } from "../src/clients.ts";
-import { resolveModel } from "../src/models.ts";
+import { resolveProviderModel } from "../src/reasoning.ts";
 import { serializePiContext } from "../src/context.ts";
 
 const PROVIDER_ID = "chatgpt";
 const PROTOTYPE_MODEL_ID = "prototype-static";
-const BACKEND_MODEL = resolveModel({ intelligence: "medium" }).model;
+type ChatGptStreamOptions = StreamOptions & { reasoning?: ThinkingLevel };
 
 function streamChatGpt(
   model: Model<Api>,
   context: Context,
-  options?: StreamOptions,
+  options?: ChatGptStreamOptions,
 ): AssistantMessageEventStream {
   const stream = createAssistantMessageEventStream();
   const output: AssistantMessage = {
@@ -49,10 +50,11 @@ function streamChatGpt(
       const prompt = serializePiContext(context);
       let contentIndex: number | undefined;
 
+      const backend = resolveProviderModel(options?.reasoning);
       for await (const event of getChatGptClients().conversation.stream(
-        BACKEND_MODEL,
+        backend.model,
         [{ role: "user", content: prompt }],
-        { temporary: true, signal: options?.signal },
+        { temporary: true, thinkingEffort: backend.thinkingEffort, pollAsync: true, signal: options?.signal },
       )) {
         if (typeof event !== "string") continue;
         if (contentIndex === undefined) {
@@ -107,7 +109,8 @@ export default function (pi: ExtensionAPI) {
       api: "chatgpt-p2",
       provider: PROVIDER_ID,
       baseUrl: "https://chatgpt.com/backend-api",
-      reasoning: false,
+      reasoning: true,
+      thinkingLevelMap: { xhigh: "xhigh", max: "max" },
       input: ["text"],
       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
       contextWindow: 128000,
