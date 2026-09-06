@@ -20,7 +20,8 @@
   "pi": {
     "extensions": [
       "extensions/chatgpt.ts",
-      "extensions/observer.ts"
+      "extensions/observer.ts",
+      "extensions/provider.ts"
     ],
     "skills": [
       "skills/chatgpt"
