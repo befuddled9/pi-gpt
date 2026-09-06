@@ -7,6 +7,7 @@ import {
   createAssistantMessageEventStream,
   createProvider,
   type Model,
+  registerApiProvider,
   type StreamOptions,
   type ThinkingLevel,
 } from "@earendil-works/pi-ai/compat";
@@ -101,6 +102,7 @@ export default async function (pi: ExtensionAPI) {
   if (discovered.length === 0) throw new Error("ChatGPT model discovery returned no usable models.");
   for (const model of discovered) modelThinkingEfforts.set(model.slug, model.thinking_efforts);
 
+  registerApiProvider({ api: "chatgpt-p2", stream: streamChatGpt, streamSimple: streamChatGpt }, "pi-gpt-provider");
   pi.registerProvider(createProvider({
     id: PROVIDER_ID,
     name: "ChatGPT",
