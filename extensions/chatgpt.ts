@@ -6,14 +6,13 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { resolve } from "node:path";
-import { BackendClient } from "../src/client.ts";
 import {
-  ConversationClient,
   DEFAULT_HEAVY_DR_MAX_WAIT_MINUTES,
   DR_IMPERATIVE_PREFIX,
   drReportsFromWidgetState,
   type ChatMessage,
 } from "../src/conversation.ts";
+import type { BackendClient } from "../src/client.ts";
 import { redact } from "../src/redact.ts";
 import {
   addChat,
@@ -24,6 +23,7 @@ import {
 } from "../src/registry.ts";
 import { resolveModel, INTELLIGENCE_LEVELS } from "../src/models.ts";
 import { prepareFiles, readTextFile, renderInlineFiles, uploadFile } from "../src/files.ts";
+import { getChatGptClients } from "../src/clients.ts";
 
 // ── DRH prompt sanitizer ────────────────────────────────────────────────
 // The system prompt is loaded from data/drh-sanitizer-prompt.txt (NOT inlined)
@@ -67,12 +67,9 @@ async function sanitizeDrhPrompt(
   }
 }
 
-let _backend: BackendClient | null = null;
-let _conv: ConversationClient | null = null;
-function clients(): { backend: BackendClient; conv: ConversationClient } {
-  if (!_backend) _backend = new BackendClient();
-  if (!_conv) _conv = new ConversationClient(_backend);
-  return { backend: _backend, conv: _conv };
+function clients() {
+  const { backend, conversation: conv } = getChatGptClients();
+  return { backend, conv };
 }
 
 function titleFromPrompt(p: string): string {
