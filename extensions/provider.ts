@@ -13,24 +13,11 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { loadToken } from "../src/auth.ts";
 import { getChatGptClients } from "../src/clients.ts";
 import { resolveModel } from "../src/models.ts";
+import { serializePiContext } from "../src/context.ts";
 
 const PROVIDER_ID = "chatgpt";
 const PROTOTYPE_MODEL_ID = "prototype-static";
 const BACKEND_MODEL = resolveModel({ intelligence: "medium" }).model;
-
-function latestUserText(context: Context): string {
-  for (let index = context.messages.length - 1; index >= 0; index--) {
-    const message = context.messages[index];
-    if (message.role !== "user") continue;
-    if (typeof message.content === "string") return message.content;
-    const text = message.content
-      .filter((part) => part.type === "text")
-      .map((part) => part.text)
-      .join("\n");
-    if (text) return text;
-  }
-  throw new Error("ChatGPT provider P2 requires a user text message.");
-}
 
 function streamChatGpt(
   model: Model<Api>,
@@ -59,7 +46,7 @@ function streamChatGpt(
   (async () => {
     try {
       stream.push({ type: "start", partial: output });
-      const prompt = latestUserText(context);
+      const prompt = serializePiContext(context);
       let contentIndex: number | undefined;
 
       for await (const event of getChatGptClients().conversation.stream(
